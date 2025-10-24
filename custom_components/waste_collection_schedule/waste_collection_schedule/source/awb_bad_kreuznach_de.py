@@ -1,6 +1,5 @@
 import logging
 from datetime import date, datetime, timedelta
-
 import requests
 from dateutil.rrule import DAILY, rrule
 from waste_collection_schedule import Collection  # type: ignore[attr-defined]
@@ -12,6 +11,7 @@ from waste_collection_schedule.exceptions import (
 TITLE = "AWB Bad Kreuznach"
 DESCRIPTION = "Source for AWB Bad Kreuznach."
 URL = "https://blupassionsystem.de/city/rest/garbageregion/filterRegion"
+GET_URL = "https://blupassionsystem.de/city/rest/garbageorte/getAllGarbageCalendar"
 TEST_CASES = {
     "Hargesheim": {"ort": "Hargesheim"},
     "Bad Kreuznach": {
@@ -41,12 +41,10 @@ ICON_MAP = {
 
 LOGGER = logging.getLogger(__name__)
 
-
 def compare_str(a: str, b: str):
     return a.lower().replace(" ", "").replace("-", "") == b.lower().replace(
         "-", ""
     ).replace(" ", "")
-
 
 class Source:
     def __init__(self, ort, strasse=None, nummer=None, stadtteil=None):
@@ -86,9 +84,9 @@ class Source:
                 params["cityId"] = city["id"]
                 found = True
                 break
-
+        
         if not found:
-            SourceArgumentNotFoundWithSuggestions(
+            raise SourceArgumentNotFoundWithSuggestions(
                 "ort", self._ort, [city["name"] for city in data["data"]["citys"]]
             )
 
@@ -98,7 +96,7 @@ class Source:
 
         if data["data"]["partOfCitys"] != []:
             if self._stadtteil is None:
-                raise SourceArgumentRequired("stadtteil")
+                raise SourceArgumentRequired(reason="stadtteil")
         elif self._stadtteil is not None:
             LOGGER.warning("stadtteil provided but not needed")
 
@@ -127,7 +125,7 @@ class Source:
 
         if data["data"]["streets"] != []:
             if self._strasse is None:
-                raise SourceArgumentRequired("strasse")
+                raise SourceArgumentRequired(reason="strasse")
         elif self._strasse is not None:
             LOGGER.warning("strasse provided but not needed")
 
@@ -151,7 +149,7 @@ class Source:
 
         if data["data"]["houseNumbers"] != []:
             if self._nummer is None:
-                raise SourceArgumentRequired("nummer")
+                raise SourceArgumentRequired(reason="nummer")
         elif self._nummer is not None:
             LOGGER.warning("nummer provided but not needed")
 
@@ -184,7 +182,7 @@ class Source:
         header = {"Accept": "application/json, text/plain, */*"}
 
         r = requests.get(
-            "https://blupassionsystem.de/city/rest/garbageorte/getAllGarbageCalendar",
+            GET_URL,
             params=params,
             headers=header,
         )
